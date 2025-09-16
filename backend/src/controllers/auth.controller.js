@@ -1,17 +1,16 @@
 const userModel = require("../models/user.model");
-const bycript = require("bcrypt");
+const bcrypt = require("bcrypt");
 const { json } = require("express");
 const jwt = require("jsonwebtoken");
 
 // Register Controller
 async function Register(req, res) {
+  const {
+    email,
+    fullname: { firstName, lastName },
+    password,
+  } = req.body;
   try {
-    const {
-      email,
-      fullname: { firstName, lastName },
-      password,
-    } = req.body;
-
     const existingUser = await userModel.findOne({ email });
 
     if (existingUser) {
@@ -20,7 +19,7 @@ async function Register(req, res) {
       });
     }
 
-    const hashPassword = bycript.hash(password, 10);
+    const hashPassword = await bcrypt.hash(password, 10);
 
     const newUser = await userModel.create({
       email,
@@ -31,8 +30,8 @@ async function Register(req, res) {
       password: hashPassword,
     });
 
-    const key = jwt.sign({ id: newUser._id }, process.env.jwt_key);
-    res.cookies("key", key);
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_KEY);
+    res.cookie("token", token);
 
     return res.status(201).json({
       message: "User created successfully",
@@ -48,9 +47,8 @@ async function Register(req, res) {
 
 // Login Controller
 async function Login(req, res) {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
-
     const user = await userModel.findOne({ email });
 
     if (!user) {
@@ -59,7 +57,7 @@ async function Login(req, res) {
       });
     }
 
-    const validPassword = await bycript.compare(password, user.password);
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
       return res.status(401).json({
@@ -67,13 +65,12 @@ async function Login(req, res) {
       });
     }
 
-    const key = jwt.sign({ id: user._id }, process.env.jwt_key);
-    res.cookies("key", key);
-    res.status(200),
-      json({
-        message: "Logged in successfully",
-        user: user,
-      });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_KEY);
+    res.cookie("token", token);
+    return res.status(200).json({
+      message: "Logged in successfully",
+      user: user,
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Server Error",

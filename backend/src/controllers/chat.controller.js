@@ -1,18 +1,61 @@
 const chatModel = require("../models/chat.model");
-
+const generateResponse = require("../services/ai.service");
 async function newChat(req, res) {
-  const { title } = req.body;
-  const user = req.user;
+  const userId = req.user._id;
+  const { prompt } = req.body;
 
   try {
     const newChat = await chatModel.create({
-      user: user._id,
-      title,
+      user: userId,
+      messages: [{ sender: "user", content: prompt }],
+    });
+    const aiResponse = await generateResponse(prompt);
+
+    newChat.messages.push({ sender: "ai", content: aiResponse });
+    await newChat.save();
+
+    return res.status(201).json({
+      message: "New chat created.",
+      newChat: newChat,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error during new chat creation.",
+      error: error.message,
+    });
+  }
+}
+async function continueChat(req, res) {
+  const userId = req.user._id;
+  const { prompt } = req.body;
+  const { chatId } = req.params;
+
+  try {
+    const existingChat = await chatModel.findOne({
+      _id: chatId,
+      user: userId,
     });
 
-    res.status(201).json({
-      message: "new chat created successfully",
-      chat: newChat,
+    if (!existingChat) {
+      return res.status(404).json({ message: "Chat not found." });
+    }
+
+    existingChat.messages.push({ sender: "user", content: prompt });
+    const conversationHistory = existingChat.messages;
+    const aiResponse = await generateResponse(conversationHistory);
+    existingChat.messages.push({ sender: "ai", content: aiResponse });
+    await existingChat.save();
+
+    return res.status(200).json({
+      message: "Chat continued successfully.",
+      chat: existingChat,
     });
-  } catch (error) {}
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error during chat continuation.",
+      error: error.message,
+    });
+  }
 }
+
+module.exports = { newChat, continueChat };

@@ -3,23 +3,23 @@ const jwt = require("jsonwebtoken");
 
 async function isValidToken(req, res, next) {
   try {
-    const key = req.cookies.key;
-    if (!key) {
+    const token = req.cookies.token;
+    if (!token) {
       return res.status(401).json({
-        message: "key not valid!",
+        message: "Authentication token missing.",
       });
     }
-    const decodedKey = jwt.verify(key, process.env.jwt_key);
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+    req.user = await userModel.findById(decoded.id);
 
-    const user = await userModel.findById(decodedKey.id);
-
-    if (!user) {
+    if (!req.user) {
       return res.status(404).json({ message: "User not found." });
     }
-    res.user = user;
 
     next();
-  } catch (error) {}
+  } catch (error) {
+    return res.status(401).json({ message: "Invalid or expired token." });
+  }
 }
 
 module.exports = isValidToken;
