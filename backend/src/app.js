@@ -10,7 +10,6 @@ app.use(cookieParser());
 
 // Auth Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/newchat", chatRoutes);
-app.use("/api/:chatId", chatRoutes);
+app.use("/api/chat", chatRoutes);
 
 module.exports = app;

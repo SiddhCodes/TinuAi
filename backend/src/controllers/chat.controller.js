@@ -1,5 +1,6 @@
 const chatModel = require("../models/chat.model");
 const generateResponse = require("../services/ai.service");
+
 async function newChat(req, res) {
   const userId = req.user._id;
   const { prompt } = req.body;
@@ -9,6 +10,7 @@ async function newChat(req, res) {
       user: userId,
       messages: [{ sender: "user", content: prompt }],
     });
+
     const aiResponse = await generateResponse(prompt);
 
     newChat.messages.push({ sender: "ai", content: aiResponse });
@@ -41,9 +43,21 @@ async function continueChat(req, res) {
     }
 
     existingChat.messages.push({ sender: "user", content: prompt });
-    const conversationHistory = existingChat.messages;
-    const aiResponse = await generateResponse(conversationHistory);
+
+    const conversationHistoryForGemini = existingChat.messages.map(
+      (message) => {
+        const role = message.sender === "user" ? "user" : "model";
+        return {
+          role: role,
+          parts: [{ text: message.content }],
+        };
+      }
+    );
+
+    const aiResponse = await generateResponse(conversationHistoryForGemini);
+
     existingChat.messages.push({ sender: "ai", content: aiResponse });
+
     await existingChat.save();
 
     return res.status(200).json({

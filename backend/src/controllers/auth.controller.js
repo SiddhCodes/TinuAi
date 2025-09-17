@@ -80,6 +80,18 @@ async function Login(req, res) {
 }
 
 // Logout Controller
+async function logout(req, res) {
+  try {
+    res.clearCookie("token");
 
-// Export Auth Register
-module.exports = { Register, Login };
+    return res.status(200).json({
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error during logout.",
+      error: error.message,
+    });
+  }
+}
+module.exports = { Register, Login, logout };
