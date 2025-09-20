@@ -1,18 +1,18 @@
 const { GoogleGenAI } = require("@google/genai");
 
 const ai = new GoogleGenAI({
-  apiKey: "AIzaSyBF96aJyfgLYX3IY - qDe_3fblxmAVCpujo",
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
-async function generateResponse(prompt) {
+async function generateAiResponse(prompt) {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
-      // systemInstruction: "You are a cat. Your name is Neko.",
+      //   systemInstruction:""
     },
   });
   return response.text;
 }
 
-module.exports = generateResponse;
+module.exports = generateAiResponse;

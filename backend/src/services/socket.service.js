@@ -1,0 +1,79 @@
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+const cookie = require("cookie");
+const userModel = require("../models/user.model");
+const chatModel = require("../models/chat.model");
+const generateAiResponse = require("./ai.service");
+const { json } = require("express");
+
+function socketServer(http) {
+  const io = new Server(http, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
+  io.use(async (socket, next) => {
+    const token = cookie.parse(socket.handshake.headers.cookie || "").token;
+
+    if (!token) {
+      return next(new Error("Authentication error: Token not provided."));
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await userModel.findById(decoded.id);
+
+      if (!user) {
+        return next(new Error("Authentication error: User not found."));
+      }
+      socket.user = user;
+
+      next();
+    } catch (error) {
+      console.error("JWT Verification Error:", error.message);
+      next(new Error("Authentication error: Invalid or expired token."));
+    }
+  });
+  io.on("connection", async (socket) => {
+    socket.on("userPrompt", async (data) => {
+      const { chatId, prompt } = JSON.parse(data);
+      console.log(chatId, prompt);
+
+      const userId = socket.user._id;
+      try {
+        let chat;
+        if (chatId) {
+          chat = await chatModel.findById(chatId);
+        } else {
+          chat = await chatModel.create({
+            user: userId,
+            messageHistory: [],
+          });
+        }
+        console.log(chat);
+
+        // chat.messageHistory.push({ sender: "user", message: prompt });
+        // const messageHistoryForGemini = chat.messageHistory.map((content) => {
+        //   const role = content.sender === "user" ? "user" : "model";
+        //   return {
+        //     role: role,
+        //     parts: [{ text: content.message }],
+        //   };
+        // });
+        // const AiResponse = await generateAiResponse(messageHistoryForGemini);
+        // chat.messageHistory.push({ sender: "model", message: AiResponse });
+        // socket.emit("aiResponse", { response: AiResponse, chatID: chat._id });
+
+        // await chat.save();
+      } catch (error) {
+        socket.emit("error", "An internal server error occurred.");
+      }
+    });
+    socket.on("disconnect", () => {
+      console.log("User disconnected");
+    });
+  });
+}
+
+module.exports = socketServer;
