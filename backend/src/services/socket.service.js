@@ -3,7 +3,9 @@ const jwt = require("jsonwebtoken");
 const cookie = require("cookie");
 const userModel = require("../models/user.model");
 const chatModel = require("../models/chat.model");
-const generateAiResponse = require("./ai.service");
+const { generateAiResponse } = require("./ai.service");
+const { saveMemory, retrieveMemory } = require("./pinecone.service");
+const { generateEmbedding } = require("../services/ai.service");
 const { json } = require("express");
 
 function socketServer(http) {
@@ -41,11 +43,21 @@ function socketServer(http) {
       const parsedData = typeof data === "string" ? JSON.parse(data) : data;
       const { chatId, prompt } = parsedData;
       try {
-        let chat = chatId
-          ? await chatModel.findById(chatId)
-          : await chatModel.create({ user: userId, messageHistory: [] });
-
+        // await saveMemory(userId, prompt);
+        let chat;
+        let context = "";
+        if (chatId) {
+          chat = await chatModel.findById(chatId);
+        } else {
+          chat = await chatModel.create({ user: userId, messageHistory: [] });
+          // context = await retrieveMemory(userId, prompt);
+        }
         chat.messageHistory.push({ sender: "user", message: prompt });
+
+        if (chat.messageHistory.length > 20) {
+          chat.messageHistory = chat.messageHistory.slice(-10);
+          await chat.save();
+        }
 
         const messageHistoryForGemini = chat.messageHistory.map((content) => {
           const role = content.sender === "user" ? "user" : "model";
@@ -54,12 +66,26 @@ function socketServer(http) {
             parts: [{ text: content.message }],
           };
         });
-        const AiResponse = await generateAiResponse(messageHistoryForGemini);
+
+        const finalPrompt = context
+          ? [
+              {
+                role: "user",
+                parts: [{ text: context + "\n" + "\nQuestion:" + prompt }],
+              },
+              ...messageHistoryForGemini,
+            ]
+          : messageHistoryForGemini;
+
+        const AiResponse = await generateAiResponse(finalPrompt);
+        // await saveMemory(userId, AiResponse);
         chat.messageHistory.push({ sender: "model", message: AiResponse });
+
         socket.emit("aiResponse", {
           response: AiResponse,
           chatID: chat._id,
         });
+
         await chat.save();
       } catch (error) {
         socket.emit(

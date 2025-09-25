@@ -5,7 +5,7 @@ const messageSchema = new Schema(
   {
     sender: {
       type: String,
-      enum: ["user", "model"],
+      enum: ["user", "model", "system"],
       required: true,
     },
     message: {
