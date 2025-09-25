@@ -6,11 +6,9 @@ const index = pc.index("tinu-ai");
 async function saveMemory(userId, content) {
   try {
     const embedding = await generateEmbedding(content);
-
-    const vectorId = Date.now();
     await index.upsert([
       {
-        id: vectorId,
+        id: `${userId}-${Date.now()}`,
         values: embedding,
         metadata: {
           user_id: userId,
