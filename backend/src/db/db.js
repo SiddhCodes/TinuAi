@@ -8,5 +8,4 @@ async function connectDb() {
     console.log(error.message);
   }
 }
-
 module.exports = connectDb;

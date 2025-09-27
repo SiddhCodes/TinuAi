@@ -48,17 +48,25 @@ function socketServer(http) {
           chat = await chatModel.create({ user: userId, messageHistory: [] });
         }
         chat.messageHistory.push({ sender: "user", message: prompt });
-        const messageHistoryForGemini = chat.messageHistory.map((content) => {
+        const memoryContext = await retrieveMemory(userId.toString(), prompt);
+        let currentChatHistory = chat.messageHistory.map((content) => {
           const role = content.sender === "user" ? "user" : "model";
           return {
             role: role,
             parts: [{ text: content.message }],
           };
         });
+        const messageHistoryForGemini = [];
+        if (memoryContext) {
+          messageHistoryForGemini.push({
+            role: "user",
+            parts: [{ text: memoryContext }],
+          });
+        }
+        messageHistoryForGemini.push(...currentChatHistory);
         const AiResponse = await generateAiResponse(messageHistoryForGemini);
         chat.messageHistory.push({ sender: "model", message: AiResponse });
-
-        if (chat.messageHistory.length >= 20) {
+        if (chat.messageHistory.length >= 4) {
           const allHistoryForGemini = chat.messageHistory.map((content) => {
             const role = content.sender === "user" ? "user" : "model";
             return {
@@ -96,5 +104,4 @@ function socketServer(http) {
     });
   });
 }
-
 module.exports = socketServer;

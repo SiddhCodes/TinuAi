@@ -5,16 +5,13 @@ const bcrypt = require("bcrypt");
 async function register(req, res) {
   const { fullName, email, password } = req.body;
   const { firstName, lastName } = fullName;
-
   try {
     const existUser = await userModel.findOne({ email });
 
     if (existUser) {
       return res.status(409).json({ message: "User already exists" });
     }
-
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = await userModel.create({
       fullName: {
         firstName,
@@ -23,13 +20,10 @@ async function register(req, res) {
       email,
       password: hashedPassword,
     });
-
     const jwtToken = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-
     res.cookie("token", jwtToken);
-
     return res
       .status(201)
       .json({ message: "User registered successfully!", newUser: newUser });
@@ -44,29 +38,23 @@ async function register(req, res) {
 
 async function login(req, res) {
   const { email, password } = req.body;
-
   try {
     const existUser = await userModel.findOne({ email });
-
     if (!existUser) {
       return res.status(401).json({
         message: "Invlid User",
       });
     }
     const isValidPassword = await bcrypt.compare(password, existUser.password);
-
     if (!isValidPassword) {
       return res.status(401).json({
         message: "Invalid Password",
       });
     }
-
     const jwtToken = jwt.sign({ id: existUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-
     res.cookie("token", jwtToken);
-
     return res.status(200).json({
       message: "Logged in successfully",
       user: existUser,
@@ -82,7 +70,6 @@ async function login(req, res) {
 async function logout(req, res) {
   try {
     res.clearCookie("token");
-
     return res.status(200).json({
       message: "Logged out successfully.",
     });
